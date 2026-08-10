@@ -1,0 +1,34 @@
+name: Portugal VFS Appointment Monitor
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/5 * * * *"
+permissions:
+  contents: write
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - name: Install Playwright
+        run: |
+          pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: Check VFS
+        env:
+          TO_EMAIL: ${{ secrets.TO_EMAIL }}
+          FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: python monitor.py
+      - name: Save state
+        if: always()
+        run: |
+          if [ -f alert_state.txt ]; then
+            git config user.name "VFS Appointment Monitor"
+            git config user.email "actions@users.noreply.github.com"
+            git add alert_state.txt
+            git diff --cached --quiet || git commit -m "Update VFS alert state"
+            git push || true
+          fi
